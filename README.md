@@ -1,39 +1,71 @@
 # Instinct AI — MVP
 
-نسخة أولى من مساعد ذكي بواجهة عربية، وخادم Node.js يتصل بـ Gemini API من Google.
+مساعد ذكي بواجهة عربية RTL، يعمل على Cloudflare Pages Functions ويتصل بخدمة Gemini من الخادم. مفتاح Gemini لا يُرسل إلى المتصفح ولا يُحفظ في GitHub.
 
-## المتطلبات
-- Node.js 20 أو أحدث.
-- مفتاح Gemini API صالح من Google AI Studio.
+## النشر على Cloudflare Pages
 
-## التشغيل محليًا
-1. انسخ `.env.example` إلى `.env`.
-2. ضع المفتاح في `GEMINI_API_KEY` داخل `.env` فقط.
-3. شغّل `npm start`.
-4. افتح `http://localhost:3000`.
+المستودع: `eabdual1lah-sudo/instinct-Ai_2`  
+فرع النسخة الحالية: `feat/mvp-initial`
 
-لا ترفع ملف `.env` أو المفتاح إلى GitHub.
+إعدادات مشروع Cloudflare Pages:
 
-## النشر على Render
-- Runtime: Node.
-- Build command: `npm install`.
-- Start command: `npm start`.
-- Branch: `feat/mvp-initial` (فرع النسخة الحالية).
+- Framework preset: **None**
+- Production branch: **feat/mvp-initial**
+- Root directory: **/**
+- Build command: اتركه فارغًا
+- Build output directory: **public**
+- Functions directory: **functions** (تُكتشف تلقائيًا من جذر المستودع)
 
-أضف المتغيرات التالية من Environment في Render:
-- `GEMINI_API_KEY` — مفتاح Gemini API، سرّي ولا يوضع في ملفات المستودع.
-- `GEMINI_MODEL` — اختياري؛ الافتراضي `gemini-3.8-flash`.
-- `PORT` — تتركه Render يضبطه تلقائيًا.
+بعد ربط المستودع، انشر المشروع. لا تستخدم مجلد `netlify` أو `api` في إعدادات Cloudflare؛ مسارات Cloudflare موجودة في `functions/api`.
 
-## الموجود حاليًا
-- واجهة محادثة عربية متجاوبة.
-- اتصال خادمي بـ Gemini عبر REST API؛ المفتاح لا يصل للمتصفح.
-- ذاكرة محادثة مؤقتة لكل جلسة، وتُمسح عند إعادة تشغيل الخادم.
-- حد لحجم الرسالة ومعدل الطلبات.
-- فحص حالة الخادم من `/api/health`.
+## إضافة مفتاح Gemini بأمان
 
-## حدود النسخة
-هذه نسخة MVP أولية: لا تنفّذ أوامر على جهازك أو GitHub، ولا تتصفح الإنترنت، ولا تملك بعد نظام أدوات. أي إجراء خارجي يحتاج تكاملًا منفصلًا وموافقة واضحة واختبارات أمان. الخطة المجانية لدى Google تخضع لحدود استخدام وتوفّر تتغير حسب النموذج والمنطقة والحساب.
+من Cloudflare Dashboard افتح مشروع Pages ثم:
+
+**Settings → Variables and Secrets → Add**
+
+أضف متغيرًا من نوع Secret:
+
+- Name: `GEMINI_API_KEY`
+- Value: مفتاح Gemini الجديد من Google AI Studio
+
+اختياريًا أضف متغيرًا عاديًا:
+- Name: `GEMINI_MODEL`
+- Value: `gemini-3.8-flash`
+
+احفظ الإعدادات ثم أعد نشر آخر Deploy حتى تُطبق المتغيرات على Functions. لا تضع المفتاح في GitHub أو داخل ملفات الموقع أو في رسالة محادثة.
+
+## اختبار النشر
+
+افتح:
+- `https://YOUR-SITE.pages.dev/api/health`
+
+يجب أن يعرض JSON فيه `"ok":true` و`"apiKeyConfigured":true` بعد ضبط المفتاح.
+
+ثم افتح الصفحة الرئيسية وأرسل رسالة تجريبية. لو ظهر خطأ من Gemini متعلق بالموديل، راجع اسم الموديل المتاح لحسابك واضبط `GEMINI_MODEL` في إعدادات Pages.
+
+## التشغيل المحلي
+
+يتطلب Node.js 20 أو أحدث. انسخ `.env.example` إلى `.env`، وضع المفتاح في `GEMINI_API_KEY` داخل الملف المحلي فقط، ثم:
+
+```bash
+npm start
+```
+
+افتح `http://localhost:3000`.
+
+## ما تتضمنه النسخة الحالية
+
+- واجهة محادثة عربية متجاوبة مع الهاتف والكمبيوتر.
+- اتصال خادمي بـ Gemini عبر Cloudflare Pages Function على `/api/chat`.
+- فحص صحة الخدمة على `/api/health`.
+- سجل محادثة مؤقت في ذاكرة بيئة التشغيل، وليس تخزينًا دائمًا؛ قد يُمسح عند إعادة تشغيل أو توزيع الوظيفة.
+- حد لطول الرسالة وحد مبدئي لمعدل الطلبات داخل نسخة الوظيفة.
+
+## حدود مهمة
+
+هذه نسخة MVP أولية وليست بعدُ مساعدًا ذاتي التنفيذ كاملًا. لا يوجد حتى الآن حفظ دائم للمحادثات، أو بحث ويب، أو أدوات تنفذ إجراءات على حساباتك وأجهزتك، أو رفع ملفات وصور. ستُضاف هذه الإمكانات تدريجيًا مع ضوابط أمان وموافقة واضحة.
 
 ## الفحص
-شغّل `npm run check`.
+
+`npm run check` يفحص صياغة ملفات الخادم والواجهة ووظائف النشر.
