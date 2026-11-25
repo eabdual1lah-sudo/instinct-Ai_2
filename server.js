@@ -4,6 +4,21 @@ import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
+
+// Load a local .env file without adding a runtime dependency. Existing host
+// environment variables always take precedence.
+try {
+  const envText = await readFile(join(ROOT, ".env"), "utf8");
+  for (const line of envText.split(/\\r?\\n/)) {
+    const match = line.match(/^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*(.*?)\\s*$/);
+    if (match && process.env[match[1]] === undefined) {
+      process.env[match[1]] = match[2].replace(/^(['"])(.*)\\1$/, "$2");
+    }
+  }
+} catch (error) {
+  if (error.code !== "ENOENT") throw error;
+}
+
 const PUBLIC = join(ROOT, "public");
 const PORT = Number(process.env.PORT || 3000);
 const MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
