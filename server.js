@@ -9,10 +9,10 @@ const ROOT = fileURLToPath(new URL(".", import.meta.url));
 // environment variables always take precedence.
 try {
   const envText = await readFile(join(ROOT, ".env"), "utf8");
-  for (const line of envText.split(/\\r?\\n/)) {
-    const match = line.match(/^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*(.*?)\\s*$/);
+  for (const line of envText.split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
     if (match && process.env[match[1]] === undefined) {
-      process.env[match[1]] = match[2].replace(/^(['"])(.*)\\1$/, "$2");
+      process.env[match[1]] = match[2].replace(/^(['"])(.*)\1$/, "$2");
     }
   }
 } catch (error) {
@@ -21,7 +21,7 @@ try {
 
 const PUBLIC = join(ROOT, "public");
 const PORT = Number(process.env.PORT || 3000);
-const MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+const MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 const sessions = new Map();
 const requests = new Map();
 const MAX_BODY = 32 * 1024;
@@ -69,8 +69,8 @@ async function chat(req, res) {
   if (!allowed(req.socket.remoteAddress || "unknown")) {
     return send(res, 429, { error: "طلبات كثيرة. استنى دقيقة وجرب تاني." });
   }
-  if (!process.env.OPENAI_API_KEY) {
-    return send(res, 503, { error: "المساعد لسه محتاج إعداد OPENAI_API_KEY على الاستضافة." });
+  if (!process.env.GEMINI_API_KEY) {
+    return send(res, 503, { error: "المساعد لسه محتاج إعداد GEMINI_API_KEY على الاستضافة." });
   }
 
   let body;
@@ -88,44 +88,60 @@ async function chat(req, res) {
   }
 
   const history = sessions.get(sessionId) || [];
-  const input = [
+  const contents = [
     ...history.slice(-MAX_HISTORY),
     { role: "user", content: message }
-  ];
+  ].map(item => ({
+    role: item.role === "assistant" ? "model" : "user",
+    parts: [{ text: item.content }]
+  }));
 
   try {
-    const upstream = await fetch("https://api.openai.com/v1/responses", {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`;
+    const upstream = await fetch(endpoint, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+        "x-goog-api-key": process.env.GEMINI_API_KEY,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: MODEL,
-        instructions: "You are Instinct, a helpful, careful AI assistant. Reply in the user's language. When the user writes Arabic, use clear, friendly Egyptian Arabic. Never claim to have performed an external action unless a tool actually confirmed it. Ask for approval before destructive or sensitive actions.",
-        input,
-        store: false
+        systemInstruction: {
+          parts: [{
+            text: "You are Instinct, a helpful, careful AI assistant. Reply in the user's language. When the user writes Arabic, use clear, friendly Egyptian Arabic. Never claim to have performed an external action unless a tool actually confirmed it. Ask for approval before destructive or sensitive actions."
+          }]
+        },
+        contents,
+        generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
       }),
       signal: AbortSignal.timeout(90_000)
     });
 
     const data = await upstream.json().catch(() => ({}));
     if (!upstream.ok) {
-      console.error("OpenAI API error:", upstream.status, data.error?.code || data.error?.type || "unknown");
-      return send(res, upstream.status === 429 ? 429 : 502, {
-        error: upstream.status === 429
-          ? "خدمة الذكاء الاصطناعي مشغولة حاليًا. جرّب بعد شوية."
-          : "حصلت مشكلة في الاتصال بخدمة الذكاء الاصطناعي. راجع إعدادات المفتاح والموديل."
-      });
+      const apiCode = data.error?.status || data.error?.code || "unknown";
+      console.error("Gemini API error:", upstream.status, apiCode);
+      if (upstream.status === 429) {
+        return send(res, 429, { error: "وصلنا لحد الاستخدام المتاح حاليًا في Gemini. جرّب بعد شوية." });
+      }
+      if (upstream.status === 503) {
+        return send(res, 503, { error: "خدمة Gemini مشغولة مؤقتًا. جرّب بعد شوية." });
+      }
+      if (upstream.status === 400 || upstream.status === 403 || upstream.status === 404) {
+        return send(res, 502, { error: "Gemini رفض الطلب. راجع صلاحية المفتاح واسم النموذج وإعدادات Gemini API." });
+      }
+      return send(res, 502, { error: "حصلت مشكلة في الاتصال بخدمة Gemini." });
     }
 
-    const answer = (data.output || [])
-      .flatMap(item => item.content || [])
-      .filter(item => item.type === "output_text")
-      .map(item => item.text)
+    const answer = (data.candidates?.[0]?.content?.parts || [])
+      .filter(part => typeof part.text === "string")
+      .map(part => part.text)
       .join("\n").trim();
 
-    if (!answer) return send(res, 502, { error: "وصل رد فاضي من النموذج. جرّب تاني." });
+    if (!answer) {
+      const reason = data.candidates?.[0]?.finishReason;
+      console.error("Gemini returned no text:", reason || "unknown");
+      return send(res, 502, { error: "Gemini لم يرجع نصًا. جرّب صياغة السؤال بطريقة مختلفة." });
+    }
 
     sessions.set(sessionId, [
       ...history,
@@ -142,7 +158,7 @@ async function chat(req, res) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   if (req.method === "GET" && url.pathname === "/api/health") {
-    return send(res, 200, { ok: true, service: "instinct-ai", model: MODEL, apiKeyConfigured: Boolean(process.env.OPENAI_API_KEY) });
+    return send(res, 200, { ok: true, service: "instinct-ai", model: MODEL, apiKeyConfigured: Boolean(process.env.GEMINI_API_KEY) });
   }
   if (req.method === "POST" && url.pathname === "/api/chat") return chat(req, res);
   if (req.method !== "GET" && req.method !== "HEAD") return send(res, 405, { error: "Method not allowed" });
