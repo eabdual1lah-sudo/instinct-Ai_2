@@ -70,7 +70,8 @@ export async function onRequestPost({ request, env }) {
 
     const data = await upstream.json().catch(() => ({}));
     if (!upstream.ok) {
-      console.error("Gemini API error:", upstream.status, data.error?.status || data.error?.code || "unknown");
+      // Upstream error strings are untrusted and can contain request data. Log only a status code.
+      console.error("Gemini API error:", upstream.status);
       if (upstream.status === 429) return json(429, { error: "وصلنا لحد الاستخدام المتاح حاليًا في Gemini. جرّب بعد شوية." });
       if (upstream.status === 503) return json(503, { error: "خدمة Gemini مشغولة مؤقتًا. جرّب بعد شوية." });
       if ([400, 403, 404].includes(upstream.status)) return json(502, { error: "Gemini رفض الطلب. راجع صلاحية المفتاح واسم النموذج وإعدادات Gemini API." });
@@ -85,7 +86,10 @@ export async function onRequestPost({ request, env }) {
     sessions.set(sessionId, [...history, { role: "user", content: message }, { role: "assistant", content: answer }].slice(-MAX_HISTORY));
     return json(200, { answer, model });
   } catch (error) {
-    console.error("Chat request failed:", error.name);
-    return json(504, { error: "الاتصال اتأخر. جرّب مرة تانية." });
+    const timedOut = error?.name === "TimeoutError" || error?.name === "AbortError";
+    console.error("Chat request failed:", timedOut ? "timeout" : "upstream connection error");
+    return timedOut
+      ? json(504, { error: "الاتصال اتأخر. جرّب مرة تانية." })
+      : json(502, { error: "تعذر الاتصال بخدمة Gemini. جرّب مرة تانية." });
   }
 }

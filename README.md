@@ -20,7 +20,7 @@
 
 ## إضافة مفتاح Gemini بأمان
 
-من Cloudflare Dashboard افتح مشروع Pages ثم:
+من Cloudflare Dashboard افتح مشروع Pages ثم **Settings → Variables and Secrets → Production**، وأضف:
 
 **Settings → Variables and Secrets → Add**
 
@@ -33,7 +33,7 @@
 - Name: `GEMINI_MODEL`
 - Value: `gemini-3.8-flash`
 
-احفظ الإعدادات ثم أعد نشر آخر Deploy حتى تُطبق المتغيرات على Functions. لا تضع المفتاح في GitHub أو داخل ملفات الموقع أو في رسالة محادثة.
+تُقرأ هذه القيم وقت تشغيل Pages Functions عبر `context.env`، وليست متغيرات Build أو إعدادات في GitHub Actions. متغيرات Preview منفصلة عن Production؛ إذا اختبرت معاينة فرع فاضبطها أيضًا في Preview. بعد حفظ Secret، أعد نشر آخر Production deployment لتصل القيمة إلى الوظائف. لا تضع المفتاح في GitHub أو داخل ملفات الموقع أو في رسالة محادثة.
 
 ## اختبار النشر
 
@@ -43,6 +43,8 @@
 يجب أن يعرض JSON فيه `"ok":true` و`"apiKeyConfigured":true` بعد ضبط المفتاح.
 
 ثم افتح الصفحة الرئيسية وأرسل رسالة تجريبية. لو ظهر خطأ من Gemini متعلق بالموديل، راجع اسم الموديل المتاح لحسابك واضبط `GEMINI_MODEL` في إعدادات Pages.
+
+إذا بقيت `apiKeyConfigured` بقيمة `false`، فالـ deployment النشط لا يستلم `GEMINI_API_KEY` في Runtime Production. راجع اسم المتغير حرفيًا (`GEMINI_API_KEY`) ونطاق Production، ثم أعد النشر. لا يكشف Health Endpoint قيمة السر.
 
 ## التشغيل المحلي
 
@@ -68,4 +70,4 @@ npm start
 
 ## الفحص
 
-`npm run check` يفحص صياغة ملفات الخادم والواجهة ووظائف النشر.
+`npm run check` يفحص صياغة ملفات الخادم والواجهة ووظائف النشر. `npm test` يختبر Cloudflare Pages Functions باستخدام استجابات Gemini وهمية، من دون الحاجة إلى مفتاح حقيقي.

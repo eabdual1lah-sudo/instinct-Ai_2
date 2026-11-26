@@ -18,3 +18,5 @@ jobs:
           node-version: 20
       - name: Check JavaScript syntax
         run: npm run check
+      - name: Test Cloudflare Pages Functions
+        run: npm test

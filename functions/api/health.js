@@ -1,4 +1,5 @@
-export async function onRequestGet({ env }) {
+export async function onRequestGet(context) {
+  const { env } = context;
   return new Response(JSON.stringify({
     ok: true,
     service: "instinct-ai",
