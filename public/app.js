@@ -1,6 +1,7 @@
 const URL="https://aqtsbkyajxwwlsxfmehm.supabase.co", KEY="sb_publishable_ZlTq6LemwgkAlu5ic7us7Q_HSR72Guo";
-import("https://esm.sh/@supabase/supabase-js@2.57.4").then(({createClient})=>{
-const db=createClient(URL,KEY),$=s=>document.querySelector(s);
+function loadSupabase(){return new Promise((resolve,reject)=>{const script=document.createElement("script");script.src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js";script.onload=()=>window.supabase?.createClient?resolve(window.supabase):reject(new Error("Supabase browser library did not initialize"));script.onerror=()=>reject(new Error("Could not load Supabase browser library"));document.head.append(script);});}
+loadSupabase().then(supabase=>{
+const db=supabase.createClient(URL,KEY),$=s=>document.querySelector(s);
 let user=null,active=null,busy=false;
 const area=$("#conversation"),form=$("#chat-form"),input=$("#message"),send=$("#send");
 function node(tag,cls,txt){const n=document.createElement(tag);if(cls)n.className=cls;if(txt!==undefined)n.textContent=txt;return n}
