@@ -4,35 +4,37 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101827">
-  <meta name="description" content="Instinct AI — مساعدك الذكي">
-  <title>Instinct AI</title>
+  <meta name="description" content="Abdu AI — مساعدك الذكي">
+  <meta name="application-name" content="Abdu AI">
+  <title>Abdu AI</title>
+  <link rel="icon" type="image/svg+xml" href="/icons/abdu-ai.svg">
+  <link rel="apple-touch-icon" href="/icons/abdu-ai.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar">
-      <a class="brand" href="/" aria-label="Instinct AI">
-        <span class="brand-mark">I</span><span>Instinct <b>AI</b></span>
+      <a class="brand" href="/" aria-label="Abdu AI">
+        <span class="brand-mark">A</span><span>Abdu <b>AI</b></span>
       </a>
       <button class="new-chat" id="new-chat">＋ محادثة جديدة</button>
       <div class="side-label">مساحة العمل</div>
       <div class="side-item active">✦ <span>المحادثة</span></div>
       <div class="sidebar-note">نسخة تجريبية أولى<br><small>المزايا هتزيد خطوة بخطوة</small></div>
-      <div class="profile"><span class="avatar">I</span><span>Instinct AI<small>مساعدك الشخصي</small></span></div>
+      <div class="profile"><span class="avatar">A</span><span>Abdu AI<small>مساعدك الشخصي</small></span></div>
     </aside>
-
     <main class="main">
       <header class="topbar">
         <button class="mobile-brand" id="menu-toggle" aria-label="القائمة">☰</button>
         <div><strong>المساعد الذكي</strong><small id="connection">جاري فحص الاتصال...</small></div>
         <span class="status-dot" id="status-dot"></span>
       </header>
-
       <section class="conversation" id="conversation" aria-live="polite">
         <div class="welcome" id="welcome">
           <div class="welcome-icon">✦</div>
           <p class="eyebrow">أهلاً بيك في</p>
-          <h1>Instinct <span>AI</span></h1>
+          <h1>Abdu <span>AI</span></h1>
           <p class="welcome-copy">مساعدك الذكي — اسأل، خطط، وتعلّم. دي أول نسخة وهنبني عليها مع بعض.</p>
           <div class="suggestions">
             <button data-prompt="ساعدني أرتب مهامي وأولوياتي النهارده">رتّب مهامي اليومية <span>↗</span></button>
@@ -41,7 +43,6 @@
           </div>
         </div>
       </section>
-
       <form class="composer" id="chat-form">
         <textarea id="message" rows="1" maxlength="8000" placeholder="اكتب رسالتك هنا..." aria-label="رسالتك" required></textarea>
         <div class="composer-bottom">
@@ -49,7 +50,7 @@
           <button id="send" type="submit" aria-label="إرسال">↑</button>
         </div>
       </form>
-      <footer>Instinct AI · نسخة MVP تجريبية</footer>
+      <footer>Abdu AI · نسخة MVP تجريبية</footer>
     </main>
   </div>
   <script src="/app.js" defer></script>
