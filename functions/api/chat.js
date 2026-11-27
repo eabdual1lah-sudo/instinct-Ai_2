@@ -53,7 +53,8 @@ export async function onRequestPost({ request, env }) {
   }));
 
   try {
-    const model = env.GEMINI_MODEL || MODEL;
+    // Pin Pages to the stable low-latency model; a legacy GEMINI_MODEL binding may still name 3.8.
+    const model = MODEL;
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
     const upstream = await fetch(endpoint, {
       method: "POST",

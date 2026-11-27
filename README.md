@@ -29,11 +29,7 @@
 - Name: `GEMINI_API_KEY`
 - Value: مفتاح Gemini الجديد من Google AI Studio
 
-اختياريًا أضف متغيرًا عاديًا:
-- Name: `GEMINI_MODEL`
-- Value: `gemini-3.5-flash-lite`
-
-تُقرأ هذه القيم وقت تشغيل Pages Functions عبر `context.env`، وليست متغيرات Build أو إعدادات في GitHub Actions. متغيرات Preview منفصلة عن Production؛ إذا اختبرت معاينة فرع فاضبطها أيضًا في Preview. بعد حفظ Secret، أعد نشر آخر Production deployment لتصل القيمة إلى الوظائف. لا تضع المفتاح في GitHub أو داخل ملفات الموقع أو في رسالة محادثة.
+يستخدم Cloudflare Pages النموذج المستقر `gemini-3.5-flash-lite` من الكود. إذا كان لديك متغير Runtime قديم باسم `GEMINI_MODEL`، فلن يغيّر هذا النموذج. يُقرأ `GEMINI_API_KEY` وقت تشغيل Pages Functions عبر `context.env`، وليس من متغيرات Build أو GitHub Actions. متغيرات Preview منفصلة عن Production؛ إذا اختبرت معاينة فرع فاضبط السر في Preview أيضًا. بعد حفظ Secret، أعد نشر آخر Production deployment. لا تضع المفتاح في GitHub أو داخل ملفات الموقع أو في رسالة محادثة.
 
 ## اختبار النشر
 
