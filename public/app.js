@@ -1,107 +1,14 @@
-const $ = (selector) => document.querySelector(selector);
-const conversation = $("#conversation");
-const welcome = $("#welcome");
-const form = $("#chat-form");
-const input = $("#message");
-const send = $("#send");
-const sessionKey = "instinct_session_v1";
-let sessionId = localStorage.getItem(sessionKey);
-if (!sessionId) {
-  sessionId = crypto.randomUUID().replaceAll("-", "");
-  localStorage.setItem(sessionKey, sessionId);
-}
-
-function addMessage(role, text, extra = "") {
-  welcome?.remove();
-  const node = document.createElement("div");
-  node.className = `message ${role} ${extra}`.trim();
-  node.textContent = text;
-  conversation.appendChild(node);
-  node.scrollIntoView({ behavior: "smooth", block: "end" });
-  return node;
-}
-
-async function checkHealth() {
-  const label = $("#connection");
-  const dot = $("#status-dot");
-  try {
-    const response = await fetch("/api/health");
-    const data = await response.json();
-    if (data.ok && data.apiKeyConfigured) {
-      label.textContent = "متصل وجاهز";
-      dot.classList.add("online");
-    } else {
-      label.textContent = "في انتظار إعداد مفتاح API";
-    }
-  } catch {
-    label.textContent = "تعذر الاتصال بالخادم";
-  }
-}
-
-async function submitMessage(message) {
-  addMessage("user", message);
-  input.value = "";
-  input.style.height = "auto";
-  send.disabled = true;
-  const pending = addMessage("assistant", "بفكر في رد مناسب…");
-  try {
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, message })
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "حصل خطأ غير متوقع.");
-    pending.textContent = data.answer;
-  } catch (error) {
-    pending.classList.add("error");
-    pending.textContent = error.message || "تعذر إرسال الرسالة.";
-  } finally {
-    send.disabled = false;
-    input.focus();
-    pending.scrollIntoView({ behavior: "smooth", block: "end" });
-  }
-}
-
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const message = input.value.trim();
-  if (message && !send.disabled) submitMessage(message);
-});
-
-input.addEventListener("input", () => {
-  input.style.height = "auto";
-  input.style.height = Math.min(input.scrollHeight, 180) + "px";
-});
-input.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && !event.shiftKey) {
-    event.preventDefault();
-    form.requestSubmit();
-  }
-});
-
-document.querySelectorAll("[data-prompt]").forEach(button => {
-  button.addEventListener("click", () => {
-    input.value = button.dataset.prompt;
-    form.requestSubmit();
-  });
-});
-
-$("#new-chat").addEventListener("click", () => {
-  sessionId = crypto.randomUUID().replaceAll("-", "");
-  localStorage.setItem(sessionKey, sessionId);
-  conversation.replaceChildren();
-  const panel = document.createElement("div");
-  panel.className = "welcome";
-  panel.innerHTML = '<div class="welcome-icon">✦</div><p class="eyebrow">محادثة جديدة</p><h1>Instinct <span>AI</span></h1><p class="welcome-copy">ابدأ بسؤالك أو اكتب اللي محتاج مساعدة فيه.</p>';
-  conversation.appendChild(panel);
-  input.focus();
-});
-
-$("#menu-toggle").addEventListener("click", () => $(".sidebar").classList.toggle("open"));
-document.addEventListener("click", (event) => {
-  if (event.target.closest(".sidebar") || event.target.closest("#menu-toggle")) return;
-  $(".sidebar").classList.remove("open");
-});
-
-checkHealth();
+const URL="https://aqtsbkyajxwwlsxfmehm.supabase.co", KEY="sb_publishable_ZlTq6LemwgkAlu5ic7us7Q_HSR72Guo";
+const db=window.supabase.createClient(URL,KEY),$=s=>document.querySelector(s);
+let user=null,active=null,busy=false;
+const area=$("#conversation"),form=$("#chat-form"),input=$("#message"),send=$("#send");
+function node(tag,cls,txt){const n=document.createElement(tag);if(cls)n.className=cls;if(txt!==undefined)n.textContent=txt;return n}
+function profile(){const p=$(".profile");p.replaceChildren(node("span","avatar",(user.email||"A")[0].toUpperCase()));const t=node("span","",user.email);t.append(node("small","","اضغط لتسجيل الخروج"));p.append(t);p.onclick=async()=>{if(confirm("تسجيل الخروج؟")){await db.auth.signOut();location.reload()}}}
+function authScreen(){area.replaceChildren();const box=node("section","auth-screen");box.innerHTML='<div class="auth-card"><div class="welcome-icon">A</div><h1>Abdu <span>AI</span></h1><p class="welcome-copy">سجّل دخولك علشان تحفظ محادثاتك وتفتحها من أي جهاز.</p><div class="auth-tabs"><button type="button" data-mode="login" class="selected">دخول</button><button type="button" data-mode="signup">حساب جديد</button></div><form id="auth-form"><label>البريد الإلكتروني<input id="email" type="email" required autocomplete="email"></label><label>كلمة المرور<input id="password" type="password" required minlength="8" autocomplete="current-password"></label><button class="auth-submit">تسجيل الدخول</button><p id="feedback"></p></form></div>';area.append(box);let mode="login";box.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{mode=b.dataset.mode;box.querySelectorAll("[data-mode]").forEach(x=>x.classList.toggle("selected",x===b));box.querySelector(".auth-submit").textContent=mode==="login"?"تسجيل الدخول":"إنشاء الحساب"});box.querySelector("form").onsubmit=async e=>{e.preventDefault();const feedback=$("#feedback"),email=$("#email").value.trim(),password=$("#password").value;const r=mode==="login"?await db.auth.signInWithPassword({email,password}):await db.auth.signUp({email,password});if(r.error){feedback.textContent=r.error.message;return}if(mode==="signup"&&!r.data.session){feedback.textContent="راجع بريدك لتأكيد الحساب ثم سجّل الدخول.";return}await boot()};$("#chat-form").hidden=true;$("#new-chat").disabled=true;const p=$(".profile");p.textContent="زائر — سجّل الدخول"}
+function welcome(){area.replaceChildren();const w=node("div","welcome");w.append(node("div","welcome-icon","✦"),node("p","eyebrow","أهلاً بيك في"));const h=node("h1");h.append("Abdu ",node("span","","AI"));w.append(h,node("p","welcome-copy","مساعدك الذكي. محادثاتك محفوظة في حسابك."));area.append(w)}
+function msg(role,text){const n=node("div","message "+role,text);area.append(n);n.scrollIntoView({behavior:"smooth"});return n}
+async function listChats(){let box=$("#saved-conversations");if(!box){box=node("div","saved-conversations");box.id="saved-conversations";$(".side-label").after(box)}box.replaceChildren();const {data,error}=await db.from("conversations").select("id,title").order("updated_at",{ascending:false});if(error){box.textContent="تعذر تحميل المحادثات";return}data.forEach(c=>{const row=node("div","saved-chat-row"),b=node("button","saved-chat",c.title),d=node("button","delete-chat","×");b.onclick=()=>openChat(c.id);d.onclick=async()=>{if(!confirm("تحذف المحادثة دي نهائيًا؟"))return;const r=await db.from("conversations").delete().eq("id",c.id);if(r.error)alert(r.error.message);else{if(active===c.id){active=null;welcome()}listChats()}};row.append(b,d);box.append(row)})}
+async function openChat(id){const {data:c,error}=await db.from("conversations").select("id").eq("id",id).single();if(error)return;active=c.id;const r=await db.from("messages").select("role,content").eq("conversation_id",id).order("created_at");if(r.error){alert(r.error.message);return}area.replaceChildren();r.data.forEach(m=>msg(m.role,m.content));if(!r.data.length)welcome()}
+async function boot(){const r=await db.auth.getUser();user=r.data.user;if(!user){authScreen();return}$("#chat-form").hidden=false;$("#new-chat").disabled=false;profile();await listChats();welcome();try{const h=await fetch("/api/health").then(r=>r.json());$("#connection").textContent=h.apiKeyConfigured?"متصل وجاهز":"في انتظار إعداد API";$("#status-dot").classList.toggle("online",!!h.apiKeyConfigured)}catch{$("#connection").textContent="تعذر الاتصال"}}
+async function submit(text){if(busy||!user)return;busy=true;send.disabled=true;input.value="";const pending=msg("assistant","بفكر في رد مناسب…");try{if(!active){const c=await db.from("conversations").insert({user_id:user.id,title:text.slice(0,55)}).select("id").single();if(c.error)throw c.error;active=c.data.id;await listChats()}const saved=await db.from("messages").insert({conversation_id:active,user_id:user.id,role:"user",content:text});if(saved.error)throw saved.error;const hist=await db.from("messages").select("role,content").eq("conversation_id",active).order("created_at").limit(16);if(hist.error)throw hist.error;const session=await db.auth.getSession();const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+session.data.session.access_token},body:JSON.stringify({conversationId:active,message:text,history:hist.data})});const data=await res.json();if(!res.ok)throw Error(data.error||"تعذر الرد");pending.textContent=data.answer;const save=await db.from("messages").insert({conversation_id:active,user_id:user.id,role:"assistant",content:data.answer});if(save.error)throw save.error;await db.from("conversations").update({updated_at:new Date().toISOString()}).eq("id",active);await listChats()}catch(e){pending.classList.add("error");pending.textContent=e.message||"حصل خطأ"}finally{busy=false;send.disabled=false;input.focus()}}
+form.onsubmit=e=>{e.preventDefault();const t=input.value.trim();if(t)submit(t)};input.oninput=()=>{input.style.height="auto";input.style.height=Math.min(input.scrollHeight,180)+"px"};input.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();form.requestSubmit()}};$("#new-chat").onclick=()=>{active=null;welcome();input.focus()};$("#menu-toggle").onclick=()=>$(".sidebar").classList.toggle("open");db.auth.onAuthStateChange((event,session)=>{if(event==="SIGNED_OUT"||!session)authScreen()});boot();
