@@ -70,7 +70,7 @@ test("chat sends the runtime secret to Gemini and returns its answer", async () 
     assert.equal(response.status, 200);
     assert.equal(payload.answer, "Hello from Gemini");
     assert.equal(sentKey, secret);
-    assert.match(sentUrl, /models\/gemini-3\.8-flash:generateContent$/);
+    assert.match(sentUrl, /models\/gemini-3\.5-flash-lite:generateContent$/);
     assert.equal(JSON.stringify(payload).includes(secret), false);
   } finally {
     globalThis.fetch = originalFetch;

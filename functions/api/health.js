@@ -3,7 +3,7 @@ export async function onRequestGet(context) {
   return new Response(JSON.stringify({
     ok: true,
     service: "instinct-ai",
-    model: env.GEMINI_MODEL || "gemini-3.8-flash",
+    model: env.GEMINI_MODEL || "gemini-3.5-flash-lite",
     apiKeyConfigured: Boolean(env.GEMINI_API_KEY)
   }), {
     status: 200,

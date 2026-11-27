@@ -31,7 +31,7 @@
 
 اختياريًا أضف متغيرًا عاديًا:
 - Name: `GEMINI_MODEL`
-- Value: `gemini-3.8-flash`
+- Value: `gemini-3.5-flash-lite`
 
 تُقرأ هذه القيم وقت تشغيل Pages Functions عبر `context.env`، وليست متغيرات Build أو إعدادات في GitHub Actions. متغيرات Preview منفصلة عن Production؛ إذا اختبرت معاينة فرع فاضبطها أيضًا في Preview. بعد حفظ Secret، أعد نشر آخر Production deployment لتصل القيمة إلى الوظائف. لا تضع المفتاح في GitHub أو داخل ملفات الموقع أو في رسالة محادثة.
 

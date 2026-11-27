@@ -1,4 +1,4 @@
-const MODEL = "gemini-3.8-flash";
+const MODEL = "gemini-3.5-flash-lite";
 const sessions = new Map();
 const requests = new Map();
 const WINDOW_MS = 60_000;

@@ -21,7 +21,7 @@ try {
 
 const PUBLIC = join(ROOT, "public");
 const PORT = Number(process.env.PORT || 3000);
-const MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 const sessions = new Map();
 const requests = new Map();
 const MAX_BODY = 32 * 1024;
