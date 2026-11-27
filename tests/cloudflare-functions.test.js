@@ -4,124 +4,103 @@ import { onRequestGet } from "../functions/api/health.js";
 import { onRequestPost } from "../functions/api/chat.js";
 
 const secret = "test-only-gemini-secret";
+const conversationId = "123e4567-e89b-42d3-a456-426614174000";
 let requestNumber = 0;
-
-function chatRequest(message = "Hello") {
+function chatRequest(message = "Hello", authenticated = true) {
   requestNumber += 1;
   return new Request("https://example.test/api/chat", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "CF-Connecting-IP": `test-${requestNumber}`
+      "CF-Connecting-IP": `test-${requestNumber}`,
+      ...(authenticated ? { Authorization: "Bearer test-access-token" } : {})
     },
-    body: JSON.stringify({ sessionId: `test-session-${requestNumber}`, message })
+    body: JSON.stringify({
+      conversationId, message,
+      history: [{ role: "user", content: message }]
+    })
   });
 }
-
-function geminiResponse(status, payload) {
-  return new Response(JSON.stringify(payload), {
-    status,
-    headers: { "Content-Type": "application/json" }
-  });
+function response(status, payload) {
+  return new Response(JSON.stringify(payload), { status, headers: { "Content-Type": "application/json" } });
+}
+function mockAuthenticatedFetch(gemini) {
+  return async (url, options = {}) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) return response(200, { id: "user-test" });
+    if (target.includes("/rest/v1/conversations?")) return response(200, [{ id: conversationId }]);
+    return gemini(target, options);
+  };
 }
 
 test("health reports key presence without exposing the key", async () => {
-  const response = await onRequestGet({ env: { GEMINI_API_KEY: secret } });
-  const payload = await response.json();
-  assert.equal(response.status, 200);
+  const r = await onRequestGet({ env: { GEMINI_API_KEY: secret } });
+  const payload = await r.json();
+  assert.equal(r.status, 200);
   assert.equal(payload.apiKeyConfigured, true);
   assert.equal(JSON.stringify(payload).includes(secret), false);
 });
-
 test("health reports a missing key", async () => {
-  const response = await onRequestGet({ env: {} });
-  assert.equal((await response.json()).apiKeyConfigured, false);
+  const r = await onRequestGet({ env: {} });
+  assert.equal((await r.json()).apiKeyConfigured, false);
 });
-
-test("chat reports missing key without calling Gemini", async () => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => { throw new Error("Gemini must not be called"); };
+test("chat reports missing GEMINI_API_KEY without making network calls", async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error("Network must not be called"); };
   try {
-    const response = await onRequestPost({ request: chatRequest(), env: {} });
-    assert.equal(response.status, 503);
-    assert.match((await response.json()).error, /GEMINI_API_KEY/);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+    const r = await onRequestPost({ request: chatRequest(), env: {} });
+    assert.equal(r.status, 503);
+    assert.match((await r.json()).error, /GEMINI_API_KEY/);
+  } finally { globalThis.fetch = original; }
 });
-
-test("chat sends the runtime secret to Gemini and returns its answer", async () => {
-  const originalFetch = globalThis.fetch;
-  let sentKey;
-  let sentUrl;
-  globalThis.fetch = async (url, options) => {
-    sentUrl = String(url);
-    sentKey = options.headers["x-goog-api-key"];
-    return geminiResponse(200, {
-      candidates: [{ content: { parts: [{ text: "Hello from Gemini" }] } }]
-    });
-  };
-  try {
-    const response = await onRequestPost({
-      request: chatRequest(),
-      env: { GEMINI_API_KEY: secret, GEMINI_MODEL: "gemini-3.8-flash" }
-    });
-    const payload = await response.json();
-    assert.equal(response.status, 200);
-    assert.equal(payload.answer, "Hello from Gemini");
-    assert.equal(sentKey, secret);
-    assert.match(sentUrl, /models\/gemini-3\.5-flash-lite:generateContent$/);
-    assert.equal(JSON.stringify(payload).includes(secret), false);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+test("chat requires an authenticated user", async () => {
+  const r = await onRequestPost({ request: chatRequest("Hello", false), env: { GEMINI_API_KEY: secret } });
+  assert.equal(r.status, 401);
 });
-
-test("health reports the pinned Pages model instead of a stale runtime override", async () => {
-  const response = await onRequestGet({ env: { GEMINI_MODEL: "gemini-3.8-flash" } });
-  assert.equal((await response.json()).model, "gemini-3.5-flash-lite");
-});
-
-test("chat sanitizes Gemini API errors in responses and logs", async () => {
-  const originalFetch = globalThis.fetch;
-  const originalError = console.error;
-  const logged = [];
-  globalThis.fetch = async () => geminiResponse(403, {
-    error: { status: secret, message: `invalid key ${secret}` }
+test("chat verifies ownership, sends runtime secret to Gemini, and returns answer", async () => {
+  const original = globalThis.fetch; let sentKey, sentUrl;
+  globalThis.fetch = mockAuthenticatedFetch(async (url, options) => {
+    sentUrl = url; sentKey = options.headers["x-goog-api-key"];
+    return response(200, { candidates: [{ content: { parts: [{ text: "Hello from Gemini" }] } }] });
   });
-  console.error = (...args) => logged.push(args.join(" "));
   try {
-    const response = await onRequestPost({
-      request: chatRequest(),
-      env: { GEMINI_API_KEY: secret }
-    });
-    const payload = await response.text();
-    assert.equal(response.status, 502);
-    assert.equal(payload.includes(secret), false);
-    assert.equal(logged.join(" ").includes(secret), false);
-  } finally {
-    globalThis.fetch = originalFetch;
-    console.error = originalError;
-  }
+    const r = await onRequestPost({ request: chatRequest(), env: { GEMINI_API_KEY: secret, GEMINI_MODEL: "stale-model" } });
+    const payload = await r.json();
+    assert.equal(r.status, 200); assert.equal(payload.answer, "Hello from Gemini");
+    assert.equal(sentKey, secret); assert.match(sentUrl, /models\/gemini-3\.5-flash-lite:generateContent$/);
+    assert.equal(JSON.stringify(payload).includes(secret), false);
+  } finally { globalThis.fetch = original; }
 });
-
-test("chat reports upstream connection failures without exposing error text", async () => {
-  const originalFetch = globalThis.fetch;
-  const originalError = console.error;
-  const logged = [];
-  globalThis.fetch = async () => { throw new Error(`connection leaked ${secret}`); };
-  console.error = (...args) => logged.push(args.join(" "));
+test("chat rejects a conversation not owned by the authenticated user", async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async url => String(url).endsWith("/auth/v1/user")
+    ? response(200, { id: "user-test" }) : response(200, []);
   try {
-    const response = await onRequestPost({
-      request: chatRequest(),
-      env: { GEMINI_API_KEY: secret }
-    });
-    const payload = await response.text();
-    assert.equal(response.status, 502);
-    assert.equal(payload.includes(secret), false);
-    assert.equal(logged.join(" ").includes(secret), false);
-  } finally {
-    globalThis.fetch = originalFetch;
-    console.error = originalError;
-  }
+    const r = await onRequestPost({ request: chatRequest(), env: { GEMINI_API_KEY: secret } });
+    assert.equal(r.status, 404);
+  } finally { globalThis.fetch = original; }
+});
+test("health reports the pinned Pages model instead of a stale runtime override", async () => {
+  const r = await onRequestGet({ env: { GEMINI_MODEL: "stale-model" } });
+  assert.equal((await r.json()).model, "gemini-3.5-flash-lite");
+});
+test("chat sanitizes Gemini API errors in responses and logs", async () => {
+  const original = globalThis.fetch, oldError = console.error, logs = [];
+  globalThis.fetch = mockAuthenticatedFetch(async () => response(403, { error: { status: secret, message: "invalid key " + secret } }));
+  console.error = (...args) => logs.push(args.join(" "));
+  try {
+    const r = await onRequestPost({ request: chatRequest(), env: { GEMINI_API_KEY: secret } });
+    const body = await r.text(); assert.equal(r.status, 502);
+    assert.equal(body.includes(secret), false); assert.equal(logs.join(" ").includes(secret), false);
+  } finally { globalThis.fetch = original; console.error = oldError; }
+});
+test("chat hides upstream connection error details", async () => {
+  const original = globalThis.fetch, oldError = console.error, logs = [];
+  globalThis.fetch = mockAuthenticatedFetch(async () => { throw new Error("connection leaked " + secret); });
+  console.error = (...args) => logs.push(args.join(" "));
+  try {
+    const r = await onRequestPost({ request: chatRequest(), env: { GEMINI_API_KEY: secret } });
+    const body = await r.text(); assert.equal(r.status, 502);
+    assert.equal(body.includes(secret), false); assert.equal(logs.join(" ").includes(secret), false);
+  } finally { globalThis.fetch = original; console.error = oldError; }
 });
