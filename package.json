@@ -1,0 +1,16 @@
+{
+  "name": "instinct-ai-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A secure Arabic-first AI assistant MVP for Cloudflare Pages",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "check": "node --check server.js && node --check public/app.js && node --check api/chat.js && node --check api/health.js && node --check functions/api/chat.js && node --check functions/api/health.js && node --check netlify/functions/chat.mjs && node --check netlify/functions/health.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
