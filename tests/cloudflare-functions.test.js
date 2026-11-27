@@ -64,17 +64,22 @@ test("chat sends the runtime secret to Gemini and returns its answer", async () 
   try {
     const response = await onRequestPost({
       request: chatRequest(),
-      env: { GEMINI_API_KEY: secret }
+      env: { GEMINI_API_KEY: secret, GEMINI_MODEL: "gemini-3.8-flash" }
     });
     const payload = await response.json();
     assert.equal(response.status, 200);
     assert.equal(payload.answer, "Hello from Gemini");
     assert.equal(sentKey, secret);
-    assert.match(sentUrl, /models\/gemini-3\.8-flash:generateContent$/);
+    assert.match(sentUrl, /models\/gemini-3\.5-flash-lite:generateContent$/);
     assert.equal(JSON.stringify(payload).includes(secret), false);
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("health reports the pinned Pages model instead of a stale runtime override", async () => {
+  const response = await onRequestGet({ env: { GEMINI_MODEL: "gemini-3.8-flash" } });
+  assert.equal((await response.json()).model, "gemini-3.5-flash-lite");
 });
 
 test("chat sanitizes Gemini API errors in responses and logs", async () => {
